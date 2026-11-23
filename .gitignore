@@ -1,0 +1,7 @@
+node_modules/
+data/
+dist/
+*.log
+.env
+# Plan documents from the employer; one spreadsheet lists employees by name, so keep the folder local.
+references/

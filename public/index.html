@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HRA Automated Submission Tool</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>HRA Automated Submission Tool</h1>
+      <span id="plan-badge" class="muted"></span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="guide" class="tab active">Guide</button>
+      <button data-tab="setup" class="tab">Setup</button>
+      <button data-tab="claims" class="tab" disabled title="Fetch claims and sync Summit first">Claims</button>
+      <button data-tab="logs" class="tab">Logs</button>
+    </nav>
+    <div class="actions">
+      <button id="job-pill" class="pill accent hidden"></button>
+      <span id="deadline" class="pill"></span>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ================= GUIDE TAB ================= -->
+    <section id="tab-guide" class="tab-page">
+      <div class="card guide">
+        <h2>What this tool does</h2>
+        <p>Flexible Informatics' MERP is a reimbursement plan that pays back part of what you spend toward your IBX medical deductible, plus half of your copays. The catch is that nothing happens automatically: you have to find each Explanation of Benefits (EOB) on the IBX website, download it, and file it by hand on Alera's Summit portal, one claim at a time.</p>
+        <p>This tool does the tedious part for you:</p>
+        <ul>
+          <li><b>Fetches every claim</b> for the plan year from IBX, for everyone on your plan, along with its EOB or Proof of Claim PDF, and keeps them on this computer.</li>
+          <li><b>Works out which EOBs are worth submitting</b> and roughly how much you'll get back, using the plan's rules.</li>
+          <li><b>Reads Summit</b> to see what you've already submitted and what Alera has paid, so nothing is filed twice.</li>
+          <li><b>Prefills the Summit claim form</b> for a chosen EOB, with the PDF attached. You look it over and click Submit yourself. <b>The tool never submits a claim on its own.</b></li>
+        </ul>
+
+        <h2>How the money works</h2>
+        <p>The HRA has two separate benefits, and each EOB can be filed against one or both:</p>
+        <table class="guide-table">
+          <thead><tr><th></th><th>Gold Classic $2,500</th><th>Silver Secure $4,750</th></tr></thead>
+          <tbody>
+            <tr><td><b>Deductible benefit</b> — you pay the first…</td><td>$1,500 single / $3,000 family</td><td>$3,750 single / $7,500 family</td></tr>
+            <tr><td>…then the HRA pays 100% of the next</td><td>$1,000 single / $2,000 family</td><td>$1,000 single / $2,000 family</td></tr>
+            <tr><td><b>Copay benefit</b></td><td colspan="2">50% of every in-network copay, up to $500 per year</td></tr>
+          </tbody>
+        </table>
+        <p class="muted small">Only in-network claims count. Coinsurance is never reimbursed. Deductible EOBs below the threshold are still worth submitting so Alera's running total is right. Claims must be filed within 60 days of the plan year ending.</p>
+
+        <h2>How to use it</h2>
+        <ol>
+          <li><b>Setup tab:</b> enter your IBX username and password, and your Summit username and password. They save as you type and are stored encrypted on this computer only.</li>
+          <li>Click <b>Fetch claims from IBX</b>. An Edge window opens and logs in. If IBX asks for a verification code, type it in that window; the tool waits for you. It then reads who is covered and downloads every claim with its EOB (medical) or Proof of Claim (pharmacy).</li>
+          <li>Click <b>Sync Summit submissions</b>. Same idea: a window opens, you enter the emailed or texted code when asked. The tool reads your transaction history, matches it to the EOBs, and detects which plan you're on.</li>
+          <li>The <b>Claims tab</b> unlocks. Each row shows the EOB, whether it qualifies, the expected payout, and a <b>Prefill</b> button for the deductible and/or copay part.</li>
+          <li>Click Prefill, check the values, and confirm. Summit opens with the form filled in and the EOB attached. Review it, choose how you want to be paid, and click <b>Submit Claim</b> yourself. The tool records it and later syncs the approval and payment.</li>
+          <li>Repeat whenever new EOBs arrive. Fetch only downloads what's new or changed.</li>
+        </ol>
+
+        <h2>Good to know</h2>
+        <ul>
+          <li>The <b>Logs tab</b> shows what each job is doing and why one failed, with a screenshot when a website didn't behave.</li>
+          <li>Jobs run one at a time. If one is waiting for you, a pill appears at the top right.</li>
+          <li>Everything lives in a folder on this computer. <b>Delete everything</b> on the Setup tab wipes it; nothing on IBX or Summit is changed.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================= SETUP TAB ================= -->
+    <section id="tab-setup" class="tab-page hidden">
+      <p class="muted small">Everything here saves itself as you change it. Logins are stored encrypted on this computer only.</p>
+
+      <div class="card">
+        <h2>IBX login <span id="c-ibx-status" class="pill"></span> <a id="link-ibx" class="btn small" href="https://www.ibx.com/login" target="_blank" rel="noopener">Open login page</a></h2>
+        <div class="stack">
+          <label>Username <input id="c-ibx-user" autocomplete="off" /></label>
+          <label>Password <input id="c-ibx-pass" type="password" autocomplete="new-password" placeholder="(unchanged)" /></label>
+        </div>
+        <div id="ibx-ready" class="ready hidden">
+          <button id="btn-fetch-2" class="primary">Fetch claims from IBX</button>
+          <span id="fetch-last" class="last-run"></span>
+          <span class="muted small">Opens an Edge window, logs in (you handle any verification code), reads who is covered, and downloads every claim for the plan year with its EOB (medical) or Proof of Claim (pharmacy).</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Summit (Alera) login <span id="c-sum-status" class="pill"></span> <a id="link-summit" class="btn small" href="https://alera-bds.summitfor.me/login" target="_blank" rel="noopener">Open login page</a></h2>
+        <div class="stack">
+          <label>Username <input id="c-sum-user" autocomplete="off" /></label>
+          <label>Password <input id="c-sum-pass" type="password" autocomplete="new-password" placeholder="(unchanged)" /></label>
+        </div>
+        <div id="summit-ready" class="ready hidden">
+          <button id="btn-sync-2" class="primary">Sync Summit submissions</button>
+          <span id="sync-last" class="last-run"></span>
+          <span class="muted small">Logs in (you enter the emailed or texted code), reads what you already submitted and what was paid, and detects your plan.</span>
+        </div>
+      </div>
+
+      <div class="card hidden" id="plan-card">
+        <h2>Your plan <button id="plan-change" class="small ghost">change</button></h2>
+        <div id="plan-summary"></div>
+        <div id="plan-manual" class="hidden">
+          <div id="plan-options" class="radio-group"></div>
+          <div class="radio-group" id="tier-options">
+            <label><input type="radio" name="tier" value="single" /> Employee only</label>
+            <label><input type="radio" name="tier" value="family" /> Employee + family</label>
+          </div>
+          <label class="inline">Plan year <input id="s-year" type="number" min="2024" max="2100" /></label>
+        </div>
+        <div id="plan-explainer" class="muted small"></div>
+      </div>
+
+      <div class="card hidden" id="members-card">
+        <h2>Covered members</h2>
+        <p class="muted small">Read from IBX and paired with Summit's claimant list automatically. Change a pairing only if it looks wrong.</p>
+        <table id="members"><thead><tr><th>Name</th><th>Relationship</th><th>Summit claimant</th></tr></thead><tbody></tbody></table>
+      </div>
+
+      <div class="card">
+        <h2>Stored on this computer</h2>
+        <p class="muted small">Database, EOB PDFs, encrypted logins and browser sessions live in <code id="data-dir"></code>.</p>
+        <button id="btn-reset" class="danger">Delete everything on this computer</button>
+      </div>
+    </section>
+
+    <!-- ================= CLAIMS TAB ================= -->
+    <section id="tab-claims" class="tab-page hidden">
+      <section class="cards" id="cards"></section>
+
+      <section class="tablebar">
+        <button id="btn-todo" class="small primary" data-act="show-todo">Show the claims to submit</button>
+        <span id="row-count" class="muted small"></span>
+        <button id="btn-csv" class="ghost small advanced">Export CSV</button>
+      </section>
+
+      <section class="card table-wrap">
+        <table id="claims">
+          <thead>
+            <tr>
+              <th data-sort="member_name">Member</th>
+              <th data-sort="service_start">Service date</th>
+              <th data-sort="provider_name">Provider</th>
+              <th data-sort="billed_cents" class="num">Billed</th>
+              <th data-sort="allowed_cents" class="num">Allowed</th>
+              <th data-sort="deductible_cents" class="num">Deductible</th>
+              <th data-sort="copay_cents" class="num">Copay</th>
+              <th data-sort="coinsurance_cents" class="num">Coins.</th>
+              <th data-sort="patient_resp_cents" class="num">You owe</th>
+              <th data-sort="network_status">Network</th>
+              <th data-sort="status">Status</th>
+              <th data-sort="expected_cents" class="num">Expected HRA</th>
+              <th data-sort="sub_status">Submit to Summit</th>
+              <th></th>
+            </tr>
+            <tr class="filters">
+              <th><select id="f-member"><option value="">All</option></select></th>
+              <th></th>
+              <th><input id="f-text" type="search" placeholder="search provider / claim #" /></th>
+              <th></th><th></th><th></th><th></th><th></th><th></th>
+              <th>
+                <select id="f-network">
+                  <option value="">All</option>
+                  <option value="in">In</option>
+                  <option value="out">Out</option>
+                  <option value="unknown">Unknown</option>
+                </select>
+              </th>
+              <th>
+                <select id="f-status">
+                  <option value="">All</option>
+                  <option value="todo">Ready to submit</option>
+                  <option value="qualifies">Qualifies (payout &gt; $0)</option>
+                  <option value="accumulates">Accumulates (payout $0)</option>
+                  <option value="needs_review">Needs review</option>
+                  <option value="not_eligible">Not eligible</option>
+                  <option value="unconfirmed">Unconfirmed</option>
+                  <option value="submitted">Submitted / pending</option>
+                  <option value="paid">Approved / paid</option>
+                </select>
+              </th>
+              <th></th>
+              <th></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="activity-section" class="card hidden">
+        <h2>Summit transactions not matched to an IBX claim</h2>
+        <p class="muted small">These were found in Summit's transaction activity. Link each one to the IBX claim it belongs to, or leave it if it is not an EOB submission.</p>
+        <table id="activity"><thead><tr><th>Summit id</th><th>Claimant</th><th>Service date</th><th class="num">Amount</th><th>Status</th><th>Link to claim</th></tr></thead><tbody></tbody></table>
+      </section>
+    </section>
+
+    <!-- ================= LOGS TAB ================= -->
+    <section id="tab-logs" class="tab-page hidden">
+      <div class="card">
+        <label class="toggle"><input type="checkbox" id="advanced-ui" /> <b>Advanced UI</b> <span class="muted small">— shows the Mark, Override and Export CSV controls on the Claims tab.</span></label>
+      </div>
+
+      <section id="job-panel" class="card job hidden">
+        <div class="job-head">
+          <div>
+            <span id="job-title"></span>
+            <span id="job-status" class="pill"></span>
+          </div>
+          <span><button id="job-cancel" class="small danger hidden">Cancel</button> <button id="job-toggle" class="ghost small">Hide log</button></span>
+        </div>
+        <div id="job-message" class="job-message hidden"></div>
+        <div id="job-progress" class="muted small"></div>
+        <div id="job-error" class="error hidden"></div>
+        <pre id="job-log" class="log"></pre>
+      </section>
+
+      <div class="card">
+        <h2>Job history <button id="btn-export-logs" class="small ghost">Export logs for support</button></h2>
+        <table id="jobs"><thead><tr><th>#</th><th>Kind</th><th>Status</th><th>Started</th><th>Result</th></tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Override modal -->
+  <div id="override" class="modal hidden">
+    <div class="modal-body">
+      <h2>Override eligibility</h2>
+      <p id="override-claim" class="muted small"></p>
+      <div class="radio-group">
+        <label><input type="radio" name="ov" value="auto" /> Automatic (use the plan rules)</label>
+        <label><input type="radio" name="ov" value="yes" /> Treat as eligible</label>
+        <label><input type="radio" name="ov" value="no" /> Treat as not eligible</label>
+      </div>
+      <label>Note <input id="override-note" /></label>
+      <div class="modal-actions">
+        <button id="override-cancel" class="ghost">Cancel</button>
+        <button id="override-save" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live job popup -->
+  <div id="jobmodal" class="modal hidden">
+    <div class="modal-body jobmodal-body">
+      <h2><span id="jm-title"></span> <span id="jm-status" class="pill"></span></h2>
+      <div id="jm-message" class="job-message hidden"></div>
+      <div id="jm-progress" class="muted small"></div>
+      <div id="jm-error" class="error hidden"></div>
+      <pre id="jm-log" class="log"></pre>
+      <div class="modal-actions">
+        <button id="jm-cancel" class="danger">Cancel</button>
+        <button id="jm-close" class="primary hidden">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset confirmation modal -->
+  <div id="reset" class="modal hidden">
+    <div class="modal-body">
+      <h2>Delete everything on this computer?</h2>
+      <p>This removes the claims database, every downloaded EOB PDF, your saved IBX and Summit logins, and the browser sessions. Nothing is changed on IBX or Summit themselves.</p>
+      <p class="muted small">Type <b>DELETE</b> to confirm.</p>
+      <label><input id="reset-confirm" placeholder="DELETE" autocomplete="off" /></label>
+      <div class="modal-actions">
+        <button id="reset-cancel" class="ghost">Cancel</button>
+        <button id="reset-go" class="danger" disabled>Delete everything</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
