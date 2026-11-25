@@ -33,6 +33,7 @@ import { DEDUCTIBLE_RULES, PLAN_LABELS } from '../eligibility/rules.js';
 import { nowIso } from '../util/dates.js';
 import { DATA_DIR, IS_SEA, paths } from '../util/paths.js';
 import { ibxConfig } from '../portals/ibx/config.js';
+import type { Benefit } from '../types.js';
 
 const settingsSchema = z.object({
   plan_option: z.enum(['gold', 'silver']).nullable().optional(),
@@ -91,6 +92,13 @@ export async function registerApi(app: FastifyInstance): Promise<void> {
 
   // ----- jobs -----
   app.post('/api/jobs/fetch', async () => runner.enqueue('fetch_eobs'));
+  /** Read EOB PDFs from a folder on this computer instead of fetching them from IBX. */
+  app.post('/api/jobs/import-eobs', async (req, reply) => {
+    const body = z.object({ folder: z.string().trim().min(1), dry_run: z.boolean().optional() }).parse(req.body ?? {});
+    const folder = path.resolve(body.folder.replace(/^~(?=$|[\\/])/, os.homedir()));
+    if (!fs.statSync(folder, { throwIfNoEntry: false })?.isDirectory()) return reply.code(400).send({ error: `Not a folder on this computer: ${folder}` });
+    return runner.enqueue('import_eobs', { folder, dry_run: Boolean(body.dry_run) });
+  });
   app.post('/api/jobs/sync-summit', async () => runner.enqueue('sync_summit'));
   app.post('/api/jobs/noop', async () => runner.enqueue('noop'));
 
@@ -134,14 +142,33 @@ export async function registerApi(app: FastifyInstance): Promise<void> {
   });
 
   app.post<{ Params: { n: string } }>('/api/claims/:n/prefill', async (req, reply) => {
-    const { benefit, force } = z.object({ benefit: benefitSchema, force: z.boolean().optional() }).parse(req.body ?? {});
+    const { benefit, force, finish_later } = z.object({ benefit: benefitSchema, force: z.boolean().optional(), finish_later: z.boolean().optional() }).parse(req.body ?? {});
     if (!getClaim(req.params.n)) return reply.code(404).send({ error: 'unknown claim' });
     try {
       planPrefill(req.params.n, benefit); // fail fast before opening a browser
     } catch (err) {
       return reply.code(400).send({ error: (err as Error).message });
     }
-    return runner.enqueue('prefill', { claim_number: req.params.n, benefit, force: Boolean(force) });
+    return runner.enqueue('prefill', { claim_number: req.params.n, benefit, force: Boolean(force), finish_later: Boolean(finish_later) });
+  });
+
+  /**
+   * Queue a save-as-draft prefill for every claim and benefit that has an amount on the EOB and no live
+   * submission yet, whatever the eligibility estimate says. Nothing is submitted; each lands in Summit's
+   * "Unfinished Claims". Pass { dry_run: true } to only list what would be queued.
+   */
+  app.post('/api/jobs/draft-all', async (req) => {
+    const { dry_run } = z.object({ dry_run: z.boolean().optional() }).parse(req.body ?? {});
+    const todo: { claim_number: string; benefit: Benefit; amount_cents: number }[] = [];
+    for (const r of buildClaimsView().rows) {
+      if (!r.has_pdf || r.user_override_qualifies === 0) continue;
+      for (const benefit of ['copay', 'deductible'] as Benefit[]) {
+        const amount = benefit === 'copay' ? r.copay_cents : r.deductible_cents;
+        if (amount > 0 && !r.submissions[benefit]) todo.push({ claim_number: r.claim_number, benefit, amount_cents: amount });
+      }
+    }
+    const jobs = dry_run ? [] : todo.map((t) => runner.enqueue('prefill', { claim_number: t.claim_number, benefit: t.benefit, force: false, finish_later: true }).id);
+    return { queued: jobs.length, jobs, claims: todo };
   });
 
   app.put<{ Params: { n: string } }>('/api/claims/:n/override', async (req) => {
@@ -178,6 +205,15 @@ export async function registerApi(app: FastifyInstance): Promise<void> {
       .type('application/pdf')
       .header('Content-Disposition', `inline; filename="${path.basename(f.file_path)}"`)
       .send(fs.createReadStream(f.file_path));
+  });
+
+  /**
+   * Submit what is in Summit's "Unfinished Claims" list (see jobs/submitDrafts.ts). This is the one place the app
+   * clicks Submit Claim, and only on drafts the user has had the chance to review in Summit.
+   */
+  app.post('/api/jobs/submit-drafts', async (req) => {
+    const body = z.object({ dry_run: z.boolean().optional(), limit: z.number().int().positive().optional() }).parse(req.body ?? {});
+    return runner.enqueue('submit_drafts', body);
   });
 
   // ----- submissions -----

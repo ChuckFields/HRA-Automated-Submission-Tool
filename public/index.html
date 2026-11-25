@@ -88,6 +88,18 @@
       </div>
 
       <div class="card">
+        <h2>Already downloaded your EOBs?</h2>
+        <p class="muted small">Instead of fetching from IBX, read the EOB PDFs you saved from the IBX site. Paste the folder that holds them; Preview lists what was found without storing anything. Pharmacy claims have no EOB and are not included.</p>
+        <div class="stack">
+          <label>Folder of EOB PDFs <input id="eob-folder" autocomplete="off" spellcheck="false" placeholder="/Users/you/Downloads/EOB" /></label>
+        </div>
+        <div class="ready">
+          <button id="btn-eob-preview">Preview</button>
+          <button id="btn-eob-import" class="primary">Import EOB PDFs</button>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>Summit (Alera) login <span id="c-sum-status" class="pill"></span> <a id="link-summit" class="btn small" href="https://alera-bds.summitfor.me/login" target="_blank" rel="noopener">Open login page</a></h2>
         <div class="stack">
           <label>Username <input id="c-sum-user" autocomplete="off" /></label>
@@ -133,6 +145,9 @@
 
       <section class="tablebar">
         <button id="btn-todo" class="small primary" data-act="show-todo">Show the claims to submit</button>
+        <button id="btn-drafts-all" class="small" title="Fill in every claim that has a copay or deductible and save it in Summit with Finish Later. Nothing is submitted.">Save all as Summit drafts</button>
+        <button id="btn-drafts-preview" class="small" title="List the unfinished claims that are in Summit right now. Nothing is submitted.">Preview Summit drafts</button>
+        <button id="btn-drafts-submit" class="small danger" title="Open each unfinished claim in Summit and click Submit Claim">Submit Summit drafts</button>
         <span id="row-count" class="muted small"></span>
         <button id="btn-csv" class="ghost small advanced">Export CSV</button>
       </section>

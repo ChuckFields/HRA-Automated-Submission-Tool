@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import { createSubmission, currentEobFile, getClaim, getSettings, listMembers, submissionsForClaim, updateSubmission } from '../db/repo.js';
-import { launchPortal } from '../portals/shared/browser.js';
+import { launchPortal, step, type PortalSession } from '../portals/shared/browser.js';
 import { summitConfig as cfg } from '../portals/summit/config.js';
-import { ensureSummitLoggedIn } from '../portals/summit/session.js';
-import { prefillClaimForm, waitForUserSubmit, type PrefillPayload } from '../portals/summit/submit.js';
+import { ensureSummitLoggedIn, summitUrl } from '../portals/summit/session.js';
+import { draftExists, prefillClaimForm, saveAsDraft, waitForUserSubmit, type PrefillPayload } from '../portals/summit/submit.js';
 import { buildClaimsView } from '../services/claimsView.js';
+import { registerBridgePage } from '../dev/pageBridge.js';
 import { isoToUs, nowIso } from '../util/dates.js';
 import { centsToPlain, formatCents } from '../util/money.js';
 import type { JobContext } from './runner.js';
@@ -96,7 +97,7 @@ export function planPrefill(claimNumber: string, benefit: Benefit): PrefillPlan 
 }
 
 export async function prefillJob(job: JobContext): Promise<string> {
-  const { claim_number, benefit, force } = (job.payload ?? {}) as { claim_number: string; benefit: Benefit; force?: boolean };
+  const { claim_number, benefit, force, finish_later } = (job.payload ?? {}) as { claim_number: string; benefit: Benefit; force?: boolean; finish_later?: boolean };
   const prior = submissionsForClaim(claim_number).filter((s) => s.benefit === benefit && s.status !== 'cancelled');
   if (prior.length && !force) {
     throw new Error(`The ${BENEFIT_WORD[benefit]} for claim ${claim_number} already has a submission (${prior[prior.length - 1].status}).`);
@@ -116,14 +117,38 @@ export async function prefillJob(job: JobContext): Promise<string> {
     job_run_id: job.id,
   });
 
-  const session = await launchPortal('summit', job);
+  let session: PortalSession | null = null;
   let ok = false;
   try {
-    await ensureSummitLoggedIn(session.page, job);
-    await prefillClaimForm(session.page, job, plan.payload);
+    session = await launchPortal('summit', job);
+    const page = session.page;
+    registerBridgePage('summit', page); // dev bridge only; its routes are not in the packaged app
+    await ensureSummitLoggedIn(page, job);
+
+    if (finish_later) {
+      // Draft mode: fill the form and click "Finish Later". Nothing is submitted; the claim waits in Summit's
+      // "Unfinished Claims" list (as an Unconfirmed row here) until the user opens it there and submits it.
+      const what = `${BENEFIT_WORD[benefit]} claim for ${formatCents(plan.amount_cents)}`;
+      const already = await step(job, page, 'Check for an existing draft', async () => {
+        await page.goto(summitUrl(cfg.paths.claimForm), { waitUntil: 'domcontentloaded' });
+        await page.locator(cfg.form.submitButton).first().waitFor({ state: 'visible', timeout: 30_000 });
+        await page.waitForTimeout(2500);
+        return draftExists(page, plan.payload.description);
+      });
+      if (!already) {
+        await prefillClaimForm(page, job, plan.payload);
+        await saveAsDraft(page, job, plan.payload.description);
+      }
+      ok = true;
+      return already
+        ? `Summit already has an unfinished ${what}; left it as it is.`
+        : `Saved the ${what} as a draft in Summit (Unfinished Claims). Open it there, tick the terms box and click Submit Claim.`;
+    }
+
+    await prefillClaimForm(page, job, plan.payload);
     job.waitingForUser(`The ${BENEFIT_WORD[benefit]} claim is filled in. Check it in the browser window, then click Submit Claim yourself. This app never clicks Submit.`);
 
-    const result = await waitForUserSubmit(session.page, job, 15 * 60_000);
+    const result = await waitForUserSubmit(page, job, 15 * 60_000);
     ok = true;
     if (result.outcome === 'submitted') {
       updateSubmission(submission.id, { status: 'submitted', summit_claim_id: result.summitId, submitted_at: nowIso(), status_checked_at: nowIso() });
@@ -137,6 +162,6 @@ export async function prefillJob(job: JobContext): Promise<string> {
     updateSubmission(submission.id, { status: 'cancelled' });
     throw err;
   } finally {
-    await session.finish(ok);
+    await session?.finish(ok);
   }
 }
