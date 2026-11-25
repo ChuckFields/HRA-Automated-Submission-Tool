@@ -15,6 +15,10 @@ Everything stays on your computer: the database, the EOB PDFs, your encrypted lo
 5. The **Claims** tab unlocks. For each eligible EOB click **Prefill**, check the filled-in form in the browser
    window, and click Summit's **Submit Claim** button yourself. The app never submits for you.
 
+If you already saved your EOB PDFs from the IBX site, skip step 3: on the **Setup** tab paste the folder that holds
+them under **Already downloaded your EOBs?**, click **Preview** to check what was read, then **Import EOB PDFs**.
+Nothing extra needs installing. It does not cover pharmacy claims, which have no EOB.
+
 To do many at once, use the buttons above the claims table instead: **Save all as Summit drafts** fills in every
 claim that has a copay or deductible and saves it with Summit's Finish Later (nothing is submitted), and
 **Submit Summit drafts** then opens each unfinished claim in Summit and clicks Submit Claim. It works from what is

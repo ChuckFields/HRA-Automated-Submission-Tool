@@ -5,6 +5,7 @@ import { db } from './db/db.js';
 import { failStaleJobs } from './db/repo.js';
 import { runner } from './jobs/runner.js';
 import { fetchEobsJob } from './jobs/fetchEobs.js';
+import { importEobsJob } from './jobs/importEobs.js';
 import { syncSummitJob } from './jobs/syncSummit.js';
 import { prefillJob } from './jobs/prefill.js';
 import { submitDraftsJob } from './jobs/submitDrafts.js';
@@ -31,6 +32,7 @@ async function main(): Promise<void> {
   failStaleJobs();
 
   runner.register('fetch_eobs', fetchEobsJob);
+  runner.register('import_eobs', importEobsJob);
   runner.register('sync_summit', syncSummitJob);
   runner.register('prefill', prefillJob);
   runner.register('submit_drafts', submitDraftsJob);

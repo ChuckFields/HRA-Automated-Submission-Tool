@@ -92,6 +92,13 @@ export async function registerApi(app: FastifyInstance): Promise<void> {
 
   // ----- jobs -----
   app.post('/api/jobs/fetch', async () => runner.enqueue('fetch_eobs'));
+  /** Read EOB PDFs from a folder on this computer instead of fetching them from IBX. */
+  app.post('/api/jobs/import-eobs', async (req, reply) => {
+    const body = z.object({ folder: z.string().trim().min(1), dry_run: z.boolean().optional() }).parse(req.body ?? {});
+    const folder = path.resolve(body.folder.replace(/^~(?=$|[\\/])/, os.homedir()));
+    if (!fs.statSync(folder, { throwIfNoEntry: false })?.isDirectory()) return reply.code(400).send({ error: `Not a folder on this computer: ${folder}` });
+    return runner.enqueue('import_eobs', { folder, dry_run: Boolean(body.dry_run) });
+  });
   app.post('/api/jobs/sync-summit', async () => runner.enqueue('sync_summit'));
   app.post('/api/jobs/noop', async () => runner.enqueue('noop'));
 

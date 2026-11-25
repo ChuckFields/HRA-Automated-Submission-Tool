@@ -376,7 +376,7 @@
       pill.className = `pill ${live.status === 'waiting_for_user' ? 'warn' : 'accent'}`;
     }
   }
-  const JOB_NAMES = { fetch_eobs: 'Fetching claims from IBX', sync_summit: 'Syncing Summit submissions', prefill: 'Prefilling a claim in Summit', submit_drafts: 'Submitting drafts in Summit', noop: 'Test job' };
+  const JOB_NAMES = { fetch_eobs: 'Fetching claims from IBX', import_eobs: 'Importing EOB PDFs', sync_summit: 'Syncing Summit submissions', prefill: 'Prefilling a claim in Summit', submit_drafts: 'Submitting drafts in Summit', noop: 'Test job' };
   const statusClass = (st) => (st === 'succeeded' ? 'ok' : st === 'failed' ? 'bad' : st === 'waiting_for_user' ? 'warn' : 'accent');
 
   /** The popup follows one job (state.jobModalId) from start to finish. */
@@ -556,6 +556,16 @@
     });
     $('#btn-fetch-2').onclick = () => startJob('/api/jobs/fetch');
     $('#btn-sync-2').onclick = () => startJob('/api/jobs/sync-summit');
+    const eobFolder = $('#eob-folder');
+    try { eobFolder.value = localStorage.getItem('eob-folder') || ''; } catch { /* storage unavailable */ }
+    const importEobs = (dryRun) => {
+      const folder = eobFolder.value.trim();
+      if (!folder) { toast('Enter the folder that holds your EOB PDFs', true); eobFolder.focus(); return; }
+      try { localStorage.setItem('eob-folder', folder); } catch { /* storage unavailable */ }
+      startJob('/api/jobs/import-eobs', { folder, dry_run: dryRun });
+    };
+    $('#btn-eob-preview').onclick = () => importEobs(true);
+    $('#btn-eob-import').onclick = () => importEobs(false);
     $('#btn-drafts-all').onclick = async () => {
       try {
         const r = await api('/api/jobs/draft-all', { method: 'POST', body: {} });
