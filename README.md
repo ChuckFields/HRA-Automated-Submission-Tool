@@ -15,6 +15,12 @@ Everything stays on your computer: the database, the EOB PDFs, your encrypted lo
 5. The **Claims** tab unlocks. For each eligible EOB click **Prefill**, check the filled-in form in the browser
    window, and click Summit's **Submit Claim** button yourself. The app never submits for you.
 
+To do many at once, use the buttons above the claims table instead: **Save all as Summit drafts** fills in every
+claim that has a copay or deductible and saves it with Summit's Finish Later (nothing is submitted), and
+**Submit Summit drafts** then opens each unfinished claim in Summit and clicks Submit Claim. It works from what is
+in Summit at that moment, so drafts you edited, deleted or added by hand are respected. **Preview Summit drafts**
+lists them without submitting.
+
 Data lives in `%LOCALAPPDATA%\HRA-Submission-Tool`. Delete that folder to start over.
 
 ## Developing

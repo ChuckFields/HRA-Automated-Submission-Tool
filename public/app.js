@@ -376,7 +376,7 @@
       pill.className = `pill ${live.status === 'waiting_for_user' ? 'warn' : 'accent'}`;
     }
   }
-  const JOB_NAMES = { fetch_eobs: 'Fetching claims from IBX', sync_summit: 'Syncing Summit submissions', prefill: 'Prefilling a claim in Summit', noop: 'Test job' };
+  const JOB_NAMES = { fetch_eobs: 'Fetching claims from IBX', sync_summit: 'Syncing Summit submissions', prefill: 'Prefilling a claim in Summit', submit_drafts: 'Submitting drafts in Summit', noop: 'Test job' };
   const statusClass = (st) => (st === 'succeeded' ? 'ok' : st === 'failed' ? 'bad' : st === 'waiting_for_user' ? 'warn' : 'accent');
 
   /** The popup follows one job (state.jobModalId) from start to finish. */
@@ -500,9 +500,9 @@
   }
 
   // ---------- actions ----------
-  async function startJob(path) {
+  async function startJob(path, body) {
     try {
-      const job = await api(path, { method: 'POST' });
+      const job = await api(path, { method: 'POST', body });
       state.jobs.unshift(job);
       showJobModal(job.id);
     } catch (e) { toast(e.message, true); }
@@ -556,6 +556,17 @@
     });
     $('#btn-fetch-2').onclick = () => startJob('/api/jobs/fetch');
     $('#btn-sync-2').onclick = () => startJob('/api/jobs/sync-summit');
+    $('#btn-drafts-all').onclick = async () => {
+      try {
+        const r = await api('/api/jobs/draft-all', { method: 'POST', body: {} });
+        toast(r.queued ? `Saving ${r.queued} claim${r.queued === 1 ? '' : 's'} as Summit drafts` : 'Nothing left to save as a draft');
+        if (r.jobs.length) showJobModal(r.jobs[0]);
+      } catch (e) { toast(e.message, true); }
+    };
+    $('#btn-drafts-preview').onclick = () => startJob('/api/jobs/submit-drafts', { dry_run: true });
+    $('#btn-drafts-submit').onclick = () => {
+      if (window.confirm('Submit every unfinished claim that is in Summit right now?\n\nThe app opens each draft, ticks the terms box and clicks Submit Claim. Drafts you edited or added by hand are submitted as they are; drafts you deleted are left alone. Use "Preview Summit drafts" first to see the list.')) startJob('/api/jobs/submit-drafts', {});
+    };
     $('#job-pill').onclick = () => { const live = state.jobs.find((j) => ['queued', 'running', 'waiting_for_user'].includes(j.status)); if (live) showJobModal(live.id); else { state.tab = 'logs'; renderTabs(); } };
     $('#jm-close').onclick = () => { state.jobModalId = null; renderJobModal(); };
     $('#btn-export-logs').onclick = () => { window.location.href = '/api/logs/export'; };

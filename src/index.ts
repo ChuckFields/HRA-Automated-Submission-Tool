@@ -7,6 +7,7 @@ import { runner } from './jobs/runner.js';
 import { fetchEobsJob } from './jobs/fetchEobs.js';
 import { syncSummitJob } from './jobs/syncSummit.js';
 import { prefillJob } from './jobs/prefill.js';
+import { submitDraftsJob } from './jobs/submitDrafts.js';
 import { exploreJob } from './jobs/explore.js';
 import { IS_SEA } from './util/paths.js';
 import { registerApi } from './routes/api.js';
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
   runner.register('fetch_eobs', fetchEobsJob);
   runner.register('sync_summit', syncSummitJob);
   runner.register('prefill', prefillJob);
+  runner.register('submit_drafts', submitDraftsJob);
   if (!IS_SEA) runner.register('explore', exploreJob);
   runner.register('noop', async (job) => {
     for (let i = 1; i <= 5; i++) {

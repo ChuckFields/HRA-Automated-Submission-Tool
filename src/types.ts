@@ -3,7 +3,7 @@ export type CoverageTier = 'single' | 'family';
 export type NetworkStatus = 'in' | 'out' | 'unknown';
 export type ClaimStatus = 'processed' | 'pending' | 'adjusted' | 'denied' | 'unknown';
 export type ClaimType = 'medical' | 'rx' | 'dental' | 'vision' | 'unknown';
-export type JobKind = 'fetch_eobs' | 'sync_summit' | 'prefill' | 'explore' | 'noop';
+export type JobKind = 'fetch_eobs' | 'sync_summit' | 'prefill' | 'submit_drafts' | 'explore' | 'noop';
 export type JobStatus = 'queued' | 'running' | 'waiting_for_user' | 'succeeded' | 'failed';
 /** The MERP has two separate benefits, each its own Summit account and its own claim. */
 export type Benefit = 'deductible' | 'copay';
